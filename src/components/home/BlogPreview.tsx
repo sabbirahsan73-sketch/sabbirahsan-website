@@ -51,7 +51,8 @@ export default function BlogPreview() {
       // Read from cache (already loaded by useData singleton)
       const blogSection = getHomePageData().blog;
 
-      // Merge with collection data for fresh titles/excerpts/images
+      // Fetch fresh blog data then merge
+      await loadCollection('col_blog');
       const allBlog = getBlog();
       await Promise.all(allBlog.map((b) => loadCollection(`col_blog_detail_${b.slug}`)));
 
