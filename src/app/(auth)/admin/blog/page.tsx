@@ -23,8 +23,9 @@ export default function BlogManagement() {
 
   useEffect(() => {
     if (!loaded) return
-    // Load blog details from Supabase then sync images into list items
+    // Always fetch fresh blog data from Supabase
     const loadBlogs = async () => {
+      await loadCollection('col_blog')
       const allBlogs = getBlog()
       // Load all blog details in parallel
       await Promise.all(allBlogs.map((b) => loadCollection(`col_blog_detail_${b.slug}`)))
@@ -128,9 +129,14 @@ export default function BlogManagement() {
               )}
             </div>
             <div className="p-4">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded">{post.category}</span>
-                <button onClick={() => toggleStatus(post.id)} className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity ${post.status === 'published' ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`} title={post.status === 'published' ? 'Click to unpublish' : 'Click to publish'}>{post.status}</button>
+                <button onClick={() => toggleStatus(post.id)} className="flex items-center gap-1.5" title={post.status === 'published' ? 'Click to unpublish' : 'Click to publish'}>
+                  <span className={`text-[10px] font-medium ${post.status === 'published' ? 'text-emerald-400' : 'text-brand-cream/30'}`}>{post.status === 'published' ? 'Live' : 'Draft'}</span>
+                  <div className={`relative w-8 h-[18px] rounded-full transition-colors ${post.status === 'published' ? 'bg-emerald-500' : 'bg-brand-mid/20'}`}>
+                    <span className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] bg-white rounded-full transition-transform shadow-sm ${post.status === 'published' ? 'translate-x-[14px]' : ''}`} />
+                  </div>
+                </button>
               </div>
               <div className="flex items-start gap-1.5">
                 <h3 className="text-[14px] font-medium text-brand-cream line-clamp-2">{post.title}</h3>
