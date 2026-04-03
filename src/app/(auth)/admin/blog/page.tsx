@@ -49,7 +49,8 @@ export default function BlogManagement() {
   const handleSave = () => {
     setSaving(true)
     const slug = formData.slug || formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    const data = { ...formData, slug }
+    const date = formData.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const data = { ...formData, slug, date }
     const next = editingItem ? items.map((i) => i.id === editingItem.id ? { ...data, id: editingItem.id } : i) : [...items, { ...data, id: Date.now().toString() }]
     persist(next); setShowModal(false); setTimeout(() => setSaving(false), 300)
   }
