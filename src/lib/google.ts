@@ -79,12 +79,16 @@ export async function createCalendarEvent({
           { method: 'popup', minutes: 30 },
         ],
       },
-      // Send email notifications to attendees
-      conferenceData: undefined,
+      conferenceData: {
+        createRequest: {
+          requestId: `booking-${startDate}-${startTime}-${attendeeEmail}`,
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      },
     }
 
     const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all&conferenceDataVersion=1`,
       {
         method: 'POST',
         headers: {
@@ -102,8 +106,9 @@ export async function createCalendarEvent({
       return null
     }
 
-    console.log('Calendar event created:', result.id)
-    return { eventId: result.id, htmlLink: result.htmlLink }
+    const meetLink = result.conferenceData?.entryPoints?.find((e: { entryPointType: string }) => e.entryPointType === 'video')?.uri ?? null
+    console.log('Calendar event created:', result.id, meetLink ? `Meet: ${meetLink}` : 'No Meet link')
+    return { eventId: result.id, htmlLink: result.htmlLink, meetLink }
   } catch (error) {
     console.error('Failed to create calendar event:', error)
     return null
