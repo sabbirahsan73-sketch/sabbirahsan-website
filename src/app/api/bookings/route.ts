@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         booking_time: data.booking_time,
         duration_minutes: data.duration_minutes,
         message: data.message ? `[${data.service_name}${data.package_name ? ' - ' + data.package_name : ''}] ${data.message}` : `[${data.service_name}${data.package_name ? ' - ' + data.package_name : ''}]`,
-        status: 'pending',
+        status: 'confirmed',
       })
       .select()
       .single()
