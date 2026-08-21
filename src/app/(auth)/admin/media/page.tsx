@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Search, Trash2, Copy, Image, FileText, Video, Check, File, Loader2, ExternalLink } from 'lucide-react'
+import { Upload, Search, Trash2, Copy, Image, FileText, Video, Check, File, Loader2, ExternalLink, LayoutGrid, List } from 'lucide-react'
 
 interface MediaItem {
   id: string
@@ -39,6 +39,7 @@ export default function MediaLibrary() {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch all files from Supabase Storage
@@ -189,7 +190,7 @@ export default function MediaLibrary() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/50" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search files..." className="w-full h-9 pl-9 pr-3 text-[13px] bg-brand-darkest/50 border border-brand-mid/10 rounded-lg text-brand-cream placeholder-brand-cream/40 focus:outline-none focus:border-brand-mid/30 transition-colors" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1">
             {['all', 'image', 'document', 'video'].map((t) => (
               <button key={t} onClick={() => setTypeFilter(t)} className={`h-7 px-2.5 rounded-md text-[11px] font-medium transition-colors capitalize ${typeFilter === t ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/60 hover:text-brand-cream'}`}>
@@ -197,63 +198,38 @@ export default function MediaLibrary() {
               </button>
             ))}
           </div>
-          {filtered.length > 0 && (
-            <button
-              onClick={toggleSelectAll}
-              className="h-7 px-2.5 rounded-md text-[11px] font-medium text-brand-cream/60 hover:text-brand-cream border border-brand-mid/10 hover:border-brand-mid/20 transition-colors"
-            >
-              {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
-            </button>
-          )}
+          {filtered.length > 0 && <button onClick={toggleSelectAll} className="h-7 px-2.5 rounded-md text-[11px] font-medium text-brand-cream/60 hover:text-brand-cream border border-brand-mid/10 hover:border-brand-mid/20 transition-colors">{selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}</button>}
+          <div className="flex items-center border border-brand-mid/10 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('grid')} className={`h-7 px-2.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/40 hover:text-brand-cream'}`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setViewMode('list')} className={`h-7 px-2.5 transition-colors ${viewMode === 'list' ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/40 hover:text-brand-cream'}`}><List className="w-3.5 h-3.5" /></button>
+          </div>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid / List */}
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 text-brand-cream/30 animate-spin" /></div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((item) => {
             const TypeIcon = typeIcons[item.type] || File
             const isSelected = selectedIds.has(item.id)
             return (
               <div key={item.id} className={`border rounded-xl overflow-hidden transition-all ${isSelected ? 'bg-brand-gold/5 border-brand-gold/30' : 'bg-brand-dark/30 border-brand-mid/10 hover:border-brand-mid/15'}`}>
-                {/* Preview */}
                 <div className="h-32 bg-brand-darkest/30 flex items-center justify-center overflow-hidden relative">
-                  {item.type === 'image' ? (
-                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <TypeIcon className="w-8 h-8 text-brand-cream/20" />
-                  )}
-                  {/* Checkbox overlay */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSelect(item.id) }}
-                    className={`absolute top-2 left-2 w-5 h-5 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'bg-brand-darkest/70 border-brand-mid/30 hover:border-brand-mid/60'}`}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-brand-darkest" />}
-                  </button>
+                  {item.type === 'image' ? (<img src={item.url} alt={item.name} className="w-full h-full object-cover" />) : (<TypeIcon className="w-8 h-8 text-brand-cream/20" />)}
+                  <button onClick={(e) => { e.stopPropagation(); toggleSelect(item.id) }} className={`absolute top-2 left-2 w-5 h-5 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'bg-brand-darkest/70 border-brand-mid/30 hover:border-brand-mid/60'}`}>{isSelected && <Check className="w-3 h-3 text-brand-darkest" />}</button>
                 </div>
-                {/* Info */}
                 <div className="p-3 space-y-2">
                   <p className="text-[12px] text-brand-cream/80 font-medium truncate" title={item.name}>{item.name}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${typeBadge[item.type] || typeBadge.document}`}>{item.type}</span>
-                    <span className="text-[10px] text-brand-cream/40">{formatSize(item.size)}</span>
-                  </div>
+                  <div className="flex items-center gap-2"><span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${typeBadge[item.type] || typeBadge.document}`}>{item.type}</span><span className="text-[10px] text-brand-cream/40">{formatSize(item.size)}</span></div>
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => copyUrl(item)} className="h-6 px-2 text-[10px] text-brand-cream/50 hover:text-brand-cream bg-brand-mid/5 hover:bg-brand-mid/10 rounded transition-colors inline-flex items-center gap-1">
-                        {copiedId === item.id ? <><Check className="w-2.5 h-2.5 text-emerald-400" /> Copied</> : <><Copy className="w-2.5 h-2.5" /> Copy URL</>}
-                      </button>
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="h-6 px-1.5 text-brand-cream/30 hover:text-brand-cream bg-brand-mid/5 hover:bg-brand-mid/10 rounded transition-colors inline-flex items-center">
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
+                      <button onClick={() => copyUrl(item)} className="h-6 px-2 text-[10px] text-brand-cream/50 hover:text-brand-cream bg-brand-mid/5 hover:bg-brand-mid/10 rounded transition-colors inline-flex items-center gap-1">{copiedId === item.id ? <><Check className="w-2.5 h-2.5 text-emerald-400" /> Copied</> : <><Copy className="w-2.5 h-2.5" /> Copy URL</>}</button>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="h-6 px-1.5 text-brand-cream/30 hover:text-brand-cream bg-brand-mid/5 hover:bg-brand-mid/10 rounded transition-colors inline-flex items-center"><ExternalLink className="w-2.5 h-2.5" /></a>
                     </div>
                     {deleteConfirm === item.id ? (
-                      <div className="flex gap-1">
-                        <button onClick={() => handleDelete(item)} className="h-6 px-2 bg-red-500/10 text-red-400 rounded text-[10px]">Delete</button>
-                        <button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-brand-mid/10 text-brand-cream/60 rounded text-[10px]">No</button>
-                      </div>
+                      <div className="flex gap-1"><button onClick={() => handleDelete(item)} className="h-6 px-2 bg-red-500/10 text-red-400 rounded text-[10px]">Delete</button><button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-brand-mid/10 text-brand-cream/60 rounded text-[10px]">No</button></div>
                     ) : (
                       <button onClick={() => setDeleteConfirm(item.id)} className="p-1 text-brand-cream/20 hover:text-red-400 rounded transition-colors"><Trash2 className="w-3 h-3" /></button>
                     )}
@@ -263,8 +239,32 @@ export default function MediaLibrary() {
             )
           })}
         </div>
+      ) : (
+        <div className="bg-brand-dark/30 border border-brand-mid/10 rounded-xl overflow-hidden">
+          {filtered.map((item, idx) => {
+            const TypeIcon = typeIcons[item.type] || File
+            const isSelected = selectedIds.has(item.id)
+            return (
+              <div key={item.id} className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${idx > 0 ? 'border-t border-brand-mid/5' : ''} ${isSelected ? 'bg-brand-gold/5' : 'hover:bg-brand-mid/5'}`}>
+                <button onClick={() => toggleSelect(item.id)} className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'border-brand-mid/30 hover:border-brand-mid/60'}`}>{isSelected && <Check className="w-2.5 h-2.5 text-brand-darkest" />}</button>
+                <div className="w-10 h-7 rounded overflow-hidden bg-brand-darkest/50 flex items-center justify-center flex-shrink-0">{item.type === 'image' ? <img src={item.url} alt={item.name} className="w-full h-full object-cover" /> : <TypeIcon className="w-3.5 h-3.5 text-brand-cream/30" />}</div>
+                <p className="flex-1 text-[12px] text-brand-cream/80 font-medium truncate" title={item.name}>{item.name}</p>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium hidden sm:inline ${typeBadge[item.type] || typeBadge.document}`}>{item.type}</span>
+                <span className="text-[11px] text-brand-cream/40 w-16 text-right hidden md:inline">{formatSize(item.size)}</span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => copyUrl(item)} className="p-1.5 rounded hover:bg-brand-mid/10 text-brand-cream/40 hover:text-brand-cream transition-colors inline-flex items-center gap-1 text-[10px]">{copiedId === item.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}</button>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-brand-mid/10 text-brand-cream/30 hover:text-brand-cream transition-colors"><ExternalLink className="w-3 h-3" /></a>
+                  {deleteConfirm === item.id ? (
+                    <div className="flex gap-1"><button onClick={() => handleDelete(item)} className="h-6 px-2 bg-red-500/10 text-red-400 rounded text-[10px]">Del</button><button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-brand-mid/10 text-brand-cream/60 rounded text-[10px]">No</button></div>
+                  ) : (<button onClick={() => setDeleteConfirm(item.id)} className="p-1.5 rounded hover:bg-red-500/10 text-brand-cream/20 hover:text-red-400 transition-colors"><Trash2 className="w-3 h-3" /></button>)}
+                </div>
+              </div>
+            )
+          })}
+          {filtered.length === 0 && <div className="text-center py-12"><p className="text-brand-cream/50 text-[12px]">{media.length === 0 ? 'No files uploaded yet' : 'No files match your search'}</p></div>}
+        </div>
       )}
-      {!loading && filtered.length === 0 && <div className="text-center py-12"><p className="text-brand-cream/50 text-[12px]">{media.length === 0 ? 'No files uploaded yet' : 'No files match your search'}</p></div>}
+      {!loading && viewMode === 'grid' && filtered.length === 0 && <div className="text-center py-12"><p className="text-brand-cream/50 text-[12px]">{media.length === 0 ? 'No files uploaded yet' : 'No files match your search'}</p></div>}
     </div>
   )
 }

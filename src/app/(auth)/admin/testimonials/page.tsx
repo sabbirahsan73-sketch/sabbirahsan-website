@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit3, Trash2, X, Save, Search, Star, Loader2, Quote, ToggleLeft, ToggleRight, Upload, Camera } from 'lucide-react'
+import { Plus, Edit3, Trash2, X, Save, Search, Star, Loader2, Quote, ToggleLeft, ToggleRight, Upload, Camera, LayoutGrid, List, Check } from 'lucide-react'
 import { getTestimonials, saveTestimonials, type TestimonialItem } from '@/lib/collections'
 import { useData } from '@/lib/useData'
 
@@ -16,6 +16,8 @@ export default function TestimonialsManagement() {
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
@@ -27,6 +29,10 @@ export default function TestimonialsManagement() {
   const persist = (next: TestimonialItem[]) => { setItems(next); saveTestimonials(next) }
 
   const filtered = items.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.company.toLowerCase().includes(searchQuery.toLowerCase()))
+
+  const toggleSelect = (id: string) => { setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next }) }
+  const toggleSelectAll = () => { selectedIds.size === filtered.length && filtered.length > 0 ? setSelectedIds(new Set()) : setSelectedIds(new Set(filtered.map(i => i.id))) }
+  const bulkDelete = () => { if (!selectedIds.size) return; if (!confirm(`Delete ${selectedIds.size} testimonial${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return; persist(items.filter(i => !selectedIds.has(i.id))); setSelectedIds(new Set()) }
 
   const openNew = () => { setEditingItem(null); setFormData({ ...emptyForm }); setShowModal(true) }
   const openEdit = (item: TestimonialItem) => { setEditingItem(item); setFormData({ name: item.name, company: item.company, role: item.role, initials: item.initials, image: item.image || '', quote: item.quote, rating: item.rating, active: item.active }); setShowModal(true) }
@@ -60,59 +66,75 @@ export default function TestimonialsManagement() {
         <button onClick={openNew} className="h-9 px-4 text-[13px] font-medium bg-brand-gold text-brand-darkest rounded-lg hover:bg-brand-gold-light transition-colors inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Testimonial</button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/50" />
-        <input type="text" placeholder="Search testimonials..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-9 pr-3 text-[13px] bg-surface-100/40 border border-brand-mid/10 rounded-xl text-brand-cream placeholder-brand-cream/30 focus:outline-none focus:border-brand-mid/25 transition-all" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map((t) => (
-          <div key={t.id} className={`group relative rounded-2xl border transition-all flex flex-col ${t.active ? 'border-brand-mid/[0.08] bg-surface-100/30 hover:border-brand-mid/15' : 'border-brand-mid/5 bg-surface-100/15 opacity-50'}`}>
-            {/* Avatar */}
-            <div className="px-5 pt-5 pb-3">
-              {t.image ? (
-                <img src={t.image} alt={t.name} className="w-12 h-12 rounded-full object-cover border border-brand-mid/20" />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-brand-mid/15 border border-brand-mid/20 flex items-center justify-center">
-                  <span className="text-[14px] font-bold text-brand-gold">{t.initials}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Name + Role */}
-            <div className="px-5 pb-2">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-[14px] font-semibold text-brand-cream truncate">{t.name}</h3>
-                <button onClick={() => openEdit(t)} className="flex-shrink-0 p-0.5 rounded text-brand-cream/20 hover:text-brand-gold transition-colors" title="Edit"><Edit3 className="w-3 h-3" /></button>
-              </div>
-              <p className="text-[12px] text-brand-cream/40 font-mono truncate">{t.role}, {t.company}</p>
-              <div className="flex gap-0.5 mt-2">{[1, 2, 3, 4, 5].map((s) => <Star key={s} className={`w-3 h-3 ${s <= t.rating ? 'text-brand-gold fill-brand-gold' : 'text-brand-cream/10'}`} />)}</div>
-            </div>
-
-            {/* Quote */}
-            <div className="px-5 pb-4 flex-1">
-              <p className="text-[13px] leading-[1.7] text-brand-cream/60 line-clamp-3">{t.quote}</p>
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-3 border-t border-brand-mid/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-brand-cream/30 font-mono">{t.company}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {deleteConfirm === t.id ? (
-                  <div className="flex gap-1"><button onClick={() => handleDelete(t.id)} className="h-6 px-2 bg-red-600 text-white rounded text-[10px]">Delete</button><button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-surface-200/60 text-brand-cream rounded text-[10px]">Cancel</button></div>
-                ) : (
-                  <button onClick={() => setDeleteConfirm(t.id)} className="p-1 rounded text-brand-cream/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                )}
-                <button onClick={() => toggleActive(t.id)} className="transition-colors" title={t.active ? 'Active' : 'Inactive'}>
-                  {t.active ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-brand-cream/30" />}
-                </button>
-              </div>
-            </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/50" />
+          <input type="text" placeholder="Search testimonials..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-9 pr-3 text-[13px] bg-surface-100/40 border border-brand-mid/10 rounded-xl text-brand-cream placeholder-brand-cream/30 focus:outline-none focus:border-brand-mid/25 transition-all" />
+        </div>
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && <button onClick={toggleSelectAll} className="h-9 px-3 rounded-lg text-[12px] text-brand-cream/60 hover:text-brand-cream border border-brand-mid/10 hover:border-brand-mid/20 transition-colors">{selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}</button>}
+          {selectedIds.size > 0 && <button onClick={bulkDelete} className="h-9 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[12px] font-medium inline-flex items-center gap-1.5 transition-colors"><Trash2 className="w-3.5 h-3.5" />Delete {selectedIds.size}</button>}
+          <div className="flex items-center border border-brand-mid/10 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('grid')} className={`h-9 px-3 transition-colors ${viewMode === 'grid' ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/40 hover:text-brand-cream'}`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setViewMode('list')} className={`h-9 px-3 transition-colors ${viewMode === 'list' ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/40 hover:text-brand-cream'}`}><List className="w-3.5 h-3.5" /></button>
           </div>
-        ))}
+        </div>
       </div>
+
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map((t) => {
+            const isSelected = selectedIds.has(t.id)
+            return (
+            <div key={t.id} className={`group relative rounded-2xl border transition-all flex flex-col ${isSelected ? 'border-brand-gold/30 bg-brand-gold/[0.02]' : t.active ? 'border-brand-mid/[0.08] bg-surface-100/30 hover:border-brand-mid/15' : 'border-brand-mid/5 bg-surface-100/15 opacity-50'}`}>
+              <button onClick={() => toggleSelect(t.id)} className={`absolute top-3 right-3 w-4 h-4 rounded border flex items-center justify-center z-10 transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'border-brand-mid/30 hover:border-brand-mid/60'}`}>{isSelected && <Check className="w-2.5 h-2.5 text-brand-darkest" />}</button>
+              <div className="px-5 pt-5 pb-3">
+                {t.image ? (<img src={t.image} alt={t.name} className="w-12 h-12 rounded-full object-cover border border-brand-mid/20" />) : (<div className="w-12 h-12 rounded-full bg-brand-mid/15 border border-brand-mid/20 flex items-center justify-center"><span className="text-[14px] font-bold text-brand-gold">{t.initials}</span></div>)}
+              </div>
+              <div className="px-5 pb-2">
+                <div className="flex items-center gap-1.5"><h3 className="text-[14px] font-semibold text-brand-cream truncate">{t.name}</h3><button onClick={() => openEdit(t)} className="flex-shrink-0 p-0.5 rounded text-brand-cream/20 hover:text-brand-gold transition-colors" title="Edit"><Edit3 className="w-3 h-3" /></button></div>
+                <p className="text-[12px] text-brand-cream/40 font-mono truncate">{t.role}, {t.company}</p>
+                <div className="flex gap-0.5 mt-2">{[1,2,3,4,5].map((s) => <Star key={s} className={`w-3 h-3 ${s <= t.rating ? 'text-brand-gold fill-brand-gold' : 'text-brand-cream/10'}`} />)}</div>
+              </div>
+              <div className="px-5 pb-4 flex-1"><p className="text-[13px] leading-[1.7] text-brand-cream/60 line-clamp-3">{t.quote}</p></div>
+              <div className="px-5 py-3 border-t border-brand-mid/[0.06] flex items-center justify-between">
+                <span className="text-[11px] text-brand-cream/30 font-mono">{t.company}</span>
+                <div className="flex items-center gap-1.5">
+                  {deleteConfirm === t.id ? (
+                    <div className="flex gap-1"><button onClick={() => handleDelete(t.id)} className="h-6 px-2 bg-red-600 text-white rounded text-[10px]">Delete</button><button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-surface-200/60 text-brand-cream rounded text-[10px]">Cancel</button></div>
+                  ) : (<button onClick={() => setDeleteConfirm(t.id)} className="p-1 rounded text-brand-cream/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>)}
+                  <button onClick={() => toggleActive(t.id)} title={t.active ? 'Active' : 'Inactive'}>{t.active ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-brand-cream/30" />}</button>
+                </div>
+              </div>
+            </div>
+          )})}
+        </div>
+      ) : (
+        <div className="bg-brand-dark/30 border border-brand-mid/10 rounded-xl overflow-hidden">
+          {filtered.map((t, idx) => {
+            const isSelected = selectedIds.has(t.id)
+            return (
+              <div key={t.id} className={`flex items-center gap-3 px-4 py-3 transition-colors ${idx > 0 ? 'border-t border-brand-mid/5' : ''} ${isSelected ? 'bg-brand-gold/5' : 'hover:bg-brand-mid/5'} ${t.active ? '' : 'opacity-50'}`}>
+                <button onClick={() => toggleSelect(t.id)} className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'border-brand-mid/30 hover:border-brand-mid/60'}`}>{isSelected && <Check className="w-2.5 h-2.5 text-brand-darkest" />}</button>
+                {t.image ? (<img src={t.image} alt={t.name} className="w-9 h-9 rounded-full object-cover border border-brand-mid/20 flex-shrink-0" />) : (<div className="w-9 h-9 rounded-full bg-brand-mid/15 border border-brand-mid/20 flex items-center justify-center flex-shrink-0"><span className="text-[12px] font-bold text-brand-gold">{t.initials}</span></div>)}
+                <div className="flex-1 min-w-0">
+                  <span className="text-[13px] font-medium text-brand-cream truncate block">{t.name}</span>
+                  <p className="text-[11px] text-brand-cream/40 font-mono truncate">{t.role}, {t.company}</p>
+                </div>
+                <div className="flex gap-0.5 hidden sm:flex">{[1,2,3,4,5].map((s) => <Star key={s} className={`w-3 h-3 ${s <= t.rating ? 'text-brand-gold fill-brand-gold' : 'text-brand-cream/10'}`} />)}</div>
+                <button onClick={() => toggleActive(t.id)} className="flex-shrink-0">{t.active ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-brand-cream/30" />}</button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => openEdit(t)} className="p-1.5 rounded hover:bg-brand-mid/10 text-brand-cream/40 hover:text-brand-cream transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
+                  {deleteConfirm === t.id ? (
+                    <div className="flex gap-1"><button onClick={() => handleDelete(t.id)} className="h-6 px-2 bg-red-600 text-white rounded text-[10px]">Del</button><button onClick={() => setDeleteConfirm(null)} className="h-6 px-2 bg-brand-mid/10 text-brand-cream rounded text-[10px]">No</button></div>
+                  ) : (<button onClick={() => setDeleteConfirm(t.id)} className="p-1.5 rounded hover:bg-red-500/10 text-brand-cream/40 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>)}
+                </div>
+              </div>
+            )
+          })}
+          {filtered.length === 0 && <div className="text-center py-10"><p className="text-brand-cream/40 text-[12px]">No testimonials found</p></div>}
+        </div>
+      )}
 
       {showModal && (<>
         <div onClick={() => setShowModal(false)} className="fixed inset-0 z-50 bg-black/60" />
