@@ -138,3 +138,38 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
 }
+
+// Bulk delete bookings by ID array — also removes Google Calendar events
+export async function DELETE(request: Request) {
+  try {
+    const supabase = createServerClient()
+    const { ids } = await request.json() as { ids: string[] }
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array required' }, { status: 400 })
+    }
+
+    // Fetch gcal_event_ids before deleting so we can clean up Calendar
+    const { data: rows } = await supabase
+      .from('bookings')
+      .select('id, gcal_event_id')
+      .in('id', ids)
+
+    // Delete from DB
+    const { error } = await supabase.from('bookings').delete().in('id', ids)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Delete Google Calendar events in the background
+    if (rows) {
+      rows.forEach((row: { gcal_event_id?: string }) => {
+        if (row.gcal_event_id) {
+          deleteCalendarEvent(row.gcal_event_id).catch(() => {})
+        }
+      })
+    }
+
+    return NextResponse.json({ deleted: ids.length })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
+  }
+}

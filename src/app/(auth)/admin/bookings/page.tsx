@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Search, CheckCircle2, XCircle, Clock, Download, User, Mail, Briefcase, Loader2, Phone, MessageSquare, X, ExternalLink, MapPin } from 'lucide-react'
+import { Calendar, Search, CheckCircle2, XCircle, Clock, Download, User, Mail, Briefcase, Loader2, Phone, MessageSquare, X, Trash2 } from 'lucide-react'
 
 interface Booking {
   id: string
@@ -24,6 +24,8 @@ export default function BookingsManagement() {
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   // Fetch bookings from Supabase
   const fetchBookings = () => {
@@ -70,6 +72,41 @@ export default function BookingsManagement() {
     }
   }
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(b => b.id)))
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} booking${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try {
+      const res = await fetch('/api/admin/bookings', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      if (res.ok) {
+        setBookings(prev => prev.filter(b => !selectedIds.has(b.id)))
+        setSelectedIds(new Set())
+      }
+    } catch {} finally {
+      setBulkDeleting(false)
+    }
+  }
+
   // Extract service info from message field (stored as "[Service - Package] message")
   const getServiceInfo = (b: Booking) => {
     const match = b.message?.match(/^\[([^\]]+)\]/)
@@ -109,9 +146,18 @@ export default function BookingsManagement() {
           <h1 className="text-[18px] font-semibold text-brand-cream">Bookings</h1>
           <p className="text-[13px] text-brand-cream/40 mt-0.5">{bookings.length} total bookings</p>
         </div>
-        <button onClick={exportCSV} className="h-9 px-4 text-[13px] bg-brand-mid/10 border border-brand-mid/10 text-brand-cream rounded-lg hover:bg-brand-mid/15 transition-colors inline-flex items-center gap-1.5">
-          <Download className="w-3.5 h-3.5" /> Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button onClick={bulkDelete} disabled={bulkDeleting}
+              className="h-9 px-4 text-[13px] bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
+              {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              Delete {selectedIds.size} selected
+            </button>
+          )}
+          <button onClick={exportCSV} className="h-9 px-4 text-[13px] bg-brand-mid/10 border border-brand-mid/10 text-brand-cream rounded-lg hover:bg-brand-mid/15 transition-colors inline-flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -135,6 +181,11 @@ export default function BookingsManagement() {
           <table className="w-full">
             <thead>
               <tr className="bg-brand-dark/20">
+                <th className="px-4 py-3 w-10">
+                  <input type="checkbox" checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                    className="w-3.5 h-3.5 rounded border-brand-mid/30 bg-brand-darkest/50 accent-brand-gold cursor-pointer" />
+                </th>
                 <th className="text-left text-[11px] text-brand-cream/60 uppercase tracking-wider px-4 py-3">Client</th>
                 <th className="text-left text-[11px] text-brand-cream/60 uppercase tracking-wider px-4 py-3">Service</th>
                 <th className="text-left text-[11px] text-brand-cream/60 uppercase tracking-wider px-4 py-3">Date & Time</th>
@@ -144,8 +195,12 @@ export default function BookingsManagement() {
             </thead>
             <tbody>
               {filtered.map((booking) => (
-                <tr key={booking.id} onClick={() => setSelectedBooking(booking)} className="hover:bg-brand-mid/5 transition-colors text-[13px] border-t border-brand-mid/[0.06] cursor-pointer">
-                  <td className="px-4 py-3">
+                <tr key={booking.id} className={`hover:bg-brand-mid/5 transition-colors text-[13px] border-t border-brand-mid/[0.06] ${selectedIds.has(booking.id) ? 'bg-brand-gold/5' : ''}`}>
+                  <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedIds.has(booking.id)} onChange={() => toggleSelect(booking.id)}
+                      className="w-3.5 h-3.5 rounded border-brand-mid/30 bg-brand-darkest/50 accent-brand-gold cursor-pointer" />
+                  </td>
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedBooking(booking)}>
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 bg-brand-mid/10 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="w-3 h-3 text-brand-cream/50" />
@@ -157,7 +212,7 @@ export default function BookingsManagement() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedBooking(booking)}>
                     <span className="text-brand-cream/70 flex items-center gap-1">
                       <Briefcase className="w-3 h-3 text-brand-cream/40" />
                       {getServiceInfo(booking)}
@@ -169,11 +224,11 @@ export default function BookingsManagement() {
                       <p className="text-[11px] text-brand-cream/40 mt-0.5 max-w-[200px] truncate">{booking.message.replace(/^\[[^\]]+\]\s*/, '')}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedBooking(booking)}>
                     <p className="text-brand-cream/70 flex items-center gap-1"><Calendar className="w-3 h-3 text-brand-cream/40" />{booking.booking_date}</p>
                     <p className="text-[11px] text-brand-cream/50 flex items-center gap-1"><Clock className="w-3 h-3" />{formatTime(booking.booking_time)} ({booking.duration_minutes}min)</p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedBooking(booking)}>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] capitalize ${statusBadge(booking.status)}`}>
                       {booking.status === 'confirmed' ? <CheckCircle2 className="w-3 h-3" /> : booking.status === 'cancelled' ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                       {booking.status}
