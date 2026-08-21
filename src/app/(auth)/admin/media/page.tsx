@@ -37,6 +37,8 @@ export default function MediaLibrary() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch all files from Supabase Storage
@@ -102,6 +104,44 @@ export default function MediaLibrary() {
     setDeleteConfirm(null)
   }
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map((m) => m.id)))
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} file${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    const toDelete = media.filter((m) => selectedIds.has(m.id))
+    await Promise.all(
+      toDelete.map(async (item) => {
+        const path = item.url.split('/media/')[1]
+        if (path) {
+          await fetch('/api/admin/media', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path }),
+          }).catch(() => {})
+        }
+      })
+    )
+    setMedia((prev) => prev.filter((m) => !selectedIds.has(m.id)))
+    setSelectedIds(new Set())
+    setBulkDeleting(false)
+  }
+
   const copyUrl = (item: MediaItem) => {
     navigator.clipboard.writeText(item.url)
     setCopiedId(item.id)
@@ -115,6 +155,16 @@ export default function MediaLibrary() {
           <h1 className="text-[18px] font-semibold text-brand-cream">Media Library</h1>
           <p className="text-[13px] text-brand-cream/40 mt-0.5">{media.length} files</p>
         </div>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={bulkDelete}
+            disabled={bulkDeleting}
+            className="inline-flex items-center gap-1.5 h-8 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} selected`}
+          </button>
+        )}
       </div>
 
       {/* Upload Zone */}
@@ -139,12 +189,22 @@ export default function MediaLibrary() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/50" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search files..." className="w-full h-9 pl-9 pr-3 text-[13px] bg-brand-darkest/50 border border-brand-mid/10 rounded-lg text-brand-cream placeholder-brand-cream/40 focus:outline-none focus:border-brand-mid/30 transition-colors" />
         </div>
-        <div className="flex items-center gap-1">
-          {['all', 'image', 'document', 'video'].map((t) => (
-            <button key={t} onClick={() => setTypeFilter(t)} className={`h-7 px-2.5 rounded-md text-[11px] font-medium transition-colors capitalize ${typeFilter === t ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/60 hover:text-brand-cream'}`}>
-              {t === 'all' ? 'All' : t === 'image' ? 'Images' : t === 'document' ? 'Docs' : 'Videos'}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {['all', 'image', 'document', 'video'].map((t) => (
+              <button key={t} onClick={() => setTypeFilter(t)} className={`h-7 px-2.5 rounded-md text-[11px] font-medium transition-colors capitalize ${typeFilter === t ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/60 hover:text-brand-cream'}`}>
+                {t === 'all' ? 'All' : t === 'image' ? 'Images' : t === 'document' ? 'Docs' : 'Videos'}
+              </button>
+            ))}
+          </div>
+          {filtered.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="h-7 px-2.5 rounded-md text-[11px] font-medium text-brand-cream/60 hover:text-brand-cream border border-brand-mid/10 hover:border-brand-mid/20 transition-colors"
+            >
+              {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -155,8 +215,9 @@ export default function MediaLibrary() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((item) => {
             const TypeIcon = typeIcons[item.type] || File
+            const isSelected = selectedIds.has(item.id)
             return (
-              <div key={item.id} className="bg-brand-dark/30 border border-brand-mid/10 rounded-xl overflow-hidden hover:border-brand-mid/15 transition-all">
+              <div key={item.id} className={`border rounded-xl overflow-hidden transition-all ${isSelected ? 'bg-brand-gold/5 border-brand-gold/30' : 'bg-brand-dark/30 border-brand-mid/10 hover:border-brand-mid/15'}`}>
                 {/* Preview */}
                 <div className="h-32 bg-brand-darkest/30 flex items-center justify-center overflow-hidden relative">
                   {item.type === 'image' ? (
@@ -164,6 +225,13 @@ export default function MediaLibrary() {
                   ) : (
                     <TypeIcon className="w-8 h-8 text-brand-cream/20" />
                   )}
+                  {/* Checkbox overlay */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleSelect(item.id) }}
+                    className={`absolute top-2 left-2 w-5 h-5 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'bg-brand-darkest/70 border-brand-mid/30 hover:border-brand-mid/60'}`}
+                  >
+                    {isSelected && <Check className="w-3 h-3 text-brand-darkest" />}
+                  </button>
                 </div>
                 {/* Info */}
                 <div className="p-3 space-y-2">
