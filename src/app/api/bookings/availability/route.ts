@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,8 +65,6 @@ export async function GET(request: Request) {
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json({ error: 'Valid date (YYYY-MM-DD) required.' }, { status: 400 })
     }
-
-    const supabase = createServerClient()
 
     // 1. Get bookings from database
     const { data: bookings, error: dbError } = await supabase
