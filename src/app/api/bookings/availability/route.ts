@@ -37,15 +37,16 @@ async function getGoogleCalendarBusy(date: string): Promise<Array<{ start: numbe
     if (data.error || !data.items) return []
 
     // Convert events to blocked minute ranges
+    const DHAKA_OFFSET = 6 * 60 // UTC+6 in minutes
     return data.items
       .filter((e: { status: string }) => e.status !== 'cancelled')
       .map((e: { start: { dateTime?: string }; end: { dateTime?: string } }) => {
         if (!e.start?.dateTime || !e.end?.dateTime) return null
         const startDate = new Date(e.start.dateTime)
         const endDate = new Date(e.end.dateTime)
-        // Convert to local minutes (events already have timezone info)
-        const startMin = startDate.getHours() * 60 + startDate.getMinutes()
-        const endMin = endDate.getHours() * 60 + endDate.getMinutes()
+        // Convert UTC to Asia/Dhaka (UTC+6)
+        const startMin = (startDate.getUTCHours() * 60 + startDate.getUTCMinutes() + DHAKA_OFFSET) % (24 * 60)
+        const endMin = (endDate.getUTCHours() * 60 + endDate.getUTCMinutes() + DHAKA_OFFSET) % (24 * 60)
         return { start: startMin, end: endMin }
       })
       .filter(Boolean) as Array<{ start: number; end: number }>
