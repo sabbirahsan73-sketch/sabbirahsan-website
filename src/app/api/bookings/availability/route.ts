@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,7 +66,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Valid date (YYYY-MM-DD) required.' }, { status: 400 })
     }
 
-    // 1. Get bookings from database
+    // 1. Get bookings from database (service role bypasses RLS)
+    const supabase = createServerClient()
     const { data: bookings, error: dbError } = await supabase
       .from('bookings')
       .select('booking_time, duration_minutes')
