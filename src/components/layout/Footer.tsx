@@ -203,7 +203,7 @@ export default function Footer() {
           </div>
         </div>
         <p className="text-[12px] text-brand-cream/50 text-center pb-4">
-          This site uses Google sign-in to manage bookings and the admin dashboard. The application name is Sabbir Ahsan.
+          This application (Sabbir Ahsan) uses Google APIs to send booking confirmation emails via Gmail and add sessions to Google Calendar.
         </p>
       </div>
     </footer>
