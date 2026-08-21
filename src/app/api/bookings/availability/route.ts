@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     if (dbError) console.error('Availability DB error:', dbError)
     console.log(`Availability [${date}]: found ${bookings?.length ?? 0} bookings in DB`)
 
-    const dbBlocked: Array<{ start: number; end: number }> = (bookings || []).map((b) => {
+    const dbBlocked: Array<{ start: number; end: number }> = (bookings || []).map((b: { booking_time: string; duration_minutes: number }) => {
       const start = timeToMinutes(b.booking_time)
       return { start: start - BUFFER_MINUTES, end: start + b.duration_minutes + BUFFER_MINUTES }
     })
