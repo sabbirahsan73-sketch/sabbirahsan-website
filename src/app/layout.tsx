@@ -34,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="application-name" content="Sabbir Ahsan" />
         <HeadCodeInjection />
       </head>
       <body className="bg-brand-darkest text-brand-cream antialiased font-sans">

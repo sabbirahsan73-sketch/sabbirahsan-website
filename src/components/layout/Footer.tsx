@@ -202,8 +202,8 @@ export default function Footer() {
             <Link href={content.termsLink || '/terms'} className="text-[13px] text-brand-cream/40 hover:text-brand-cream/70 transition-colors">{content.termsText || 'Terms of Service'}</Link>
           </div>
         </div>
-        <p className="text-[11px] text-brand-cream/25 text-center pb-4">
-          Google sign-in is used to manage bookings and the admin dashboard on this site.
+        <p className="text-[12px] text-brand-cream/50 text-center pb-4">
+          This site uses Google sign-in to manage bookings and the admin dashboard. The application name is Sabbir Ahsan.
         </p>
       </div>
     </footer>
