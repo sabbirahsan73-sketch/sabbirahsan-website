@@ -42,7 +42,7 @@ export async function createCalendarEvent({
   attendeeEmail: string
   attendeeName: string
   location?: string
-}): Promise<{ eventId: string; htmlLink: string } | null> {
+}): Promise<{ eventId: string; htmlLink: string; meetLink: string | null } | null> {
   try {
     const accessToken = await getAccessToken()
 
