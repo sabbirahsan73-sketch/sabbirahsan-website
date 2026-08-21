@@ -44,7 +44,7 @@ const navItems = [
 ]
 
 function LoginForm({ onLogin }: { onLogin: (user: User) => void }) {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -54,6 +54,9 @@ function LoginForm({ onLogin }: { onLogin: (user: User) => void }) {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Map username to internal email for Supabase auth
+    const email = username.includes('@') ? username : `${username}@admin.local`
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -96,17 +99,17 @@ function LoginForm({ onLogin }: { onLogin: (user: User) => void }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-[11px] text-brand-cream/60 uppercase tracking-wider mb-1.5">
-                Email
+              <label htmlFor="username" className="block text-[11px] text-brand-cream/60 uppercase tracking-wider mb-1.5">
+                Username
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/80" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/80" />
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
                   required
                   className="w-full h-9 pl-9 pr-3 text-[13px] bg-brand-darkest/50 border border-brand-mid/10 rounded-lg text-brand-cream placeholder-brand-cream/40 focus:outline-none focus:border-brand-mid/30 transition-colors"
                 />
