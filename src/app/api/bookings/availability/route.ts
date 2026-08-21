@@ -69,11 +69,14 @@ export async function GET(request: Request) {
     const supabase = createServerClient()
 
     // 1. Get bookings from database
-    const { data: bookings } = await supabase
+    const { data: bookings, error: dbError } = await supabase
       .from('bookings')
       .select('booking_time, duration_minutes')
       .eq('booking_date', date)
       .neq('status', 'cancelled')
+
+    if (dbError) console.error('Availability DB error:', dbError)
+    console.log(`Availability [${date}]: found ${bookings?.length ?? 0} bookings in DB`)
 
     const dbBlocked: Array<{ start: number; end: number }> = (bookings || []).map((b) => {
       const start = timeToMinutes(b.booking_time)
