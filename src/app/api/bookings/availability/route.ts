@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 const WORK_START = 18 * 60  // 6:00 PM in minutes
 const WORK_END   = 24 * 60  // 12:00 AM (midnight)
-const BUFFER     = 15        // minutes gap around each booking
 const INTERVAL   = 30        // slot step in minutes
 
 export async function GET(request: Request) {
@@ -43,10 +42,10 @@ export async function GET(request: Request) {
 
     console.log(`Availability [${date}]: ${booked.length} bookings found`)
 
-    // ── Build blocked ranges (booking ± buffer) ──
+    // ── Build blocked ranges (exact booking duration only) ──
     const blocked = booked.map((b) => {
-      const mid = timeToMinutes(b.booking_time)
-      return { start: mid - BUFFER, end: mid + b.duration_minutes + BUFFER }
+      const start = timeToMinutes(b.booking_time)
+      return { start, end: start + b.duration_minutes }
     })
 
     // ── Generate available time slots ──
