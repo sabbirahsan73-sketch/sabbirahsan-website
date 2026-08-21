@@ -41,3 +41,21 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = createServerClient()
+    const { ids } = await request.json() as { ids: string[] }
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array required' }, { status: 400 })
+    }
+
+    const { error } = await supabase.from('contacts').delete().in('id', ids)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ deleted: ids.length })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
+  }
+}

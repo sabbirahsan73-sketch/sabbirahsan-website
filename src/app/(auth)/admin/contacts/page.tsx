@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Mail, Search, Download, CheckCircle2, MessageSquare, Archive, ChevronDown, ChevronUp, User, Briefcase, Clock, DollarSign, Phone, Loader2 } from 'lucide-react'
+import { Mail, Search, Download, CheckCircle2, MessageSquare, Archive, ChevronDown, ChevronUp, User, Briefcase, Clock, DollarSign, Phone, Loader2, Trash2, Check } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -22,6 +22,8 @@ export default function ContactsManagement() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const fetchContacts = () => {
     fetch('/api/admin/contacts?t=' + Date.now(), { cache: 'no-store' })
@@ -42,6 +44,37 @@ export default function ContactsManagement() {
     const matchesSearch = searchQuery === '' || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesStatus && matchesSearch
   })
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map((c) => c.id)))
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} contact${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try {
+      await fetch('/api/admin/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      setContacts((prev) => prev.filter((c) => !selectedIds.has(c.id)))
+      setSelectedIds(new Set())
+    } catch {} finally { setBulkDeleting(false) }
+  }
 
   const updateStatus = async (id: string, status: string) => {
     setUpdating(id)
@@ -87,7 +120,19 @@ export default function ContactsManagement() {
           <p className="text-[13px] text-brand-cream/40">{contacts.length} total</p>
           {unreadCount > 0 && <span className="px-2 py-0.5 bg-brand-gold/10 text-brand-gold text-[11px] font-medium rounded-full">{unreadCount} new</span>}
         </div>
-        <button onClick={exportCSV} className="h-9 px-4 text-[13px] bg-brand-mid/10 border border-brand-mid/10 text-brand-cream rounded-lg hover:bg-brand-mid/15 transition-colors inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export</button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={bulkDelete}
+              disabled={bulkDeleting}
+              className="h-9 px-4 text-[13px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} selected`}
+            </button>
+          )}
+          <button onClick={exportCSV} className="h-9 px-4 text-[13px] bg-brand-mid/10 border border-brand-mid/10 text-brand-cream rounded-lg hover:bg-brand-mid/15 transition-colors inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export</button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -95,10 +140,20 @@ export default function ContactsManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-cream/50" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search contacts..." className="w-full h-9 pl-9 pr-3 text-[13px] bg-brand-darkest/50 border border-brand-mid/10 rounded-lg text-brand-cream placeholder-brand-cream/40 focus:outline-none focus:border-brand-mid/30 transition-colors" />
         </div>
-        <div className="flex items-center gap-1">
-          {['all', 'new', 'read', 'replied', 'archived'].map((status) => (
-            <button key={status} onClick={() => setStatusFilter(status)} className={`h-7 px-2.5 rounded-md text-[11px] font-medium transition-colors capitalize ${statusFilter === status ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/60 hover:text-brand-cream'}`}>{status}</button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {['all', 'new', 'read', 'replied', 'archived'].map((status) => (
+              <button key={status} onClick={() => setStatusFilter(status)} className={`h-7 px-2.5 rounded-md text-[11px] font-medium transition-colors capitalize ${statusFilter === status ? 'bg-brand-mid/10 text-brand-cream' : 'text-brand-cream/60 hover:text-brand-cream'}`}>{status}</button>
+            ))}
+          </div>
+          {filtered.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="h-7 px-2.5 rounded-md text-[11px] font-medium text-brand-cream/60 hover:text-brand-cream border border-brand-mid/10 hover:border-brand-mid/20 transition-colors"
+            >
+              {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -106,14 +161,26 @@ export default function ContactsManagement() {
         <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 text-brand-cream/30 animate-spin" /></div>
       ) : (
         <div className="bg-brand-dark/30 border border-brand-mid/10 rounded-xl overflow-hidden">
-          {filtered.map((contact, idx) => (
-            <div key={contact.id} className={idx > 0 ? 'border-t border-brand-mid/5' : ''}>
+          {filtered.map((contact, idx) => {
+            const isSelected = selectedIds.has(contact.id)
+            return (
+            <div key={contact.id} className={`${idx > 0 ? 'border-t border-brand-mid/5' : ''} ${isSelected ? 'bg-brand-gold/5' : ''}`}>
+              <div className="flex items-stretch">
+                {/* Checkbox column */}
+                <div
+                  className="flex items-center px-3 cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(contact.id) }}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-brand-gold border-brand-gold' : 'border-brand-mid/30 hover:border-brand-mid/60'}`}>
+                    {isSelected && <Check className="w-2.5 h-2.5 text-brand-darkest" />}
+                  </div>
+                </div>
               <button
                 onClick={() => {
                   setExpandedId(expandedId === contact.id ? null : contact.id)
                   if (contact.status === 'new') updateStatus(contact.id, 'read')
                 }}
-                className={`w-full text-left px-4 py-3 hover:bg-brand-mid/5 transition-colors flex items-center gap-3 ${contact.status === 'new' ? 'bg-brand-gold/[0.02]' : ''}`}
+                className={`flex-1 text-left px-2 py-3 hover:bg-brand-mid/5 transition-colors flex items-center gap-3`}
               >
                 <div className="w-2 flex-shrink-0">
                   {contact.status === 'new' && <div className="w-2 h-2 bg-brand-gold rounded-full" />}
@@ -138,6 +205,7 @@ export default function ContactsManagement() {
                   {expandedId === contact.id ? <ChevronUp className="w-3.5 h-3.5 text-brand-cream/40" /> : <ChevronDown className="w-3.5 h-3.5 text-brand-cream/40" />}
                 </div>
               </button>
+              </div>
 
               {expandedId === contact.id && (
                 <div className="px-4 pb-4 pt-1 ml-12">
@@ -167,7 +235,7 @@ export default function ContactsManagement() {
                 </div>
               )}
             </div>
-          ))}
+          )})}
           {filtered.length === 0 && <div className="text-center py-12"><p className="text-brand-cream/50 text-[12px]">No contacts found</p></div>}
         </div>
       )}
